@@ -253,8 +253,52 @@ with open(filename,'w',encoding="utf-8") as file:
 
 
 #%%
+email = 'nbranam@vols.utk.edu'
+header_qsub = []
+header_qsub.append('#!/bin/bash')
+header_qsub.append('#PBS -q fill')
+header_qsub.append('#PBS -V')
+header_qsub.append('#PBS -l nodes=1:ppn=8')
+header_qsub.append('#PBS -m abe')
+header_qsub.append('#PBS -N' + filename[0:-4])
+header_qsub.append('#PBS -M ' + email)
+header_qsub.append('')
+header_qsub.append('cd $PBS_O_WORKDIR')
+header_qsub.append('')
+header_qsub.append('RTP=runtape_$(date "+%s%N")')
+header_qsub.append('')
+header_qsub.append('module load MCNP6/2.0')
+header_qsub.append('')
+header_qsub.append('mcnp6 TASKS 8 i=' + filename + ' o=' + filename[0:-4] + '_out.txt  runtpe=/tmp/$RTP')
+header_qsub.append('rm /tmp/$RTP')
 
+qsub_filename = filename[0:-4] + '.sh'
+lines_for_qsub = [header_qsub]
+with open(qsub_filename,'w') as file:
+    for inte,line in enumerate(lines_for_qsub):
+        if type(line) == list:
+            for i,j in enumerate(line):
+                if type(j) == list:
+                    for k,l in enumerate(j):
+                        file.write(str(l))
+                        file.write('\n')
+                else:
+                    file.write(j)
+                    file.write('\n')
+        else:
+            file.write(line)
+            file.write('\n') 
+            
+#%% Converts to Unix Format     
 
+windows_line_ending = b'\r\n'
+linux_line_ending = b'\n'
+with open(qsub_filename, 'rb') as f:
+	content = f.read()
+	content = content.replace(windows_line_ending, linux_line_ending)
+
+with open(qsub_filename, 'wb') as f:
+	f.write(content)
 
 
 
