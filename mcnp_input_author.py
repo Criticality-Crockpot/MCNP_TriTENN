@@ -18,12 +18,14 @@ deck_title = 'STA MCNP Input Deck'
 center_distance = 14.5 # distance from center of cylinders to center of assembly
 # assuming container is cylindrical and has an h/d ratio of 1
 liters_in_container = 2
+h_to_d = 1
 volume_of_container = liters_in_container*1000 # cm^3
-gpl = 100
+gpl = 100 # Pu concentration
 pp = 2
 
-# absorber: choose 1 for Boron-10, 2 for Aluminum, 3 for Air
-absorber = 3
+# absorber: choose 1 for Boron-10, 2 for Aluminum, 3 for Air, 4 for Natural Boron, 5 for Cadmium, 6 for Gadolinium, 7 for Oak Ridge Concrete,
+# 8 for Borated Polyethylene, 9 for Polyethylene
+absorber = 6
 
 # Concentrations
 h = 0.60689089
@@ -33,9 +35,13 @@ p239 = 1.20317020e-02
 p240 = 5.30869186e-04
 p241 = 3.62446221e-05
 p242 = 1.99065079e-06
+soln_den = 0.1
 
-con_h =  (4*volume_of_container/pi)**(1./3) # height of container
-con_r = con_h/2 # radius of container
+
+con_h = (h_to_d)*((4*volume_of_container)/(pi*h_to_d))**(1/3)
+con_r = con_h/(h_to_d*2)
+# con_h =  (4*volume_of_container/pi)**(1./3) # height of container
+# con_r = con_h/2 # radius of container
 
 
 rail_w = 22  # rail width
@@ -102,45 +108,82 @@ surface_values.append('')
 
 
 #%% 
-# listed in atomic fractions
-# convert to WF, calculate the amount of Pu in the system to credible
 
-# Convert to weight fractions here
-# Adjust to credible concentrations
-OG_AF = np.sum(np.array([h,n,o,p239,p240,p241,p242]))
+h = 0.60689089
+n = 0.02394325
+o = 0.36916586
+p239 = 1.20317020e-02
+p240 = 5.30869186e-04
+p241 = 3.62446221e-05
+p242 = 1.99065079e-06
 
-denom = h*1 + o*16 + n*14 + p239*239 + p240*240 + p241*241 + p242*242
-num = np.array([h*1, o*16, n*14, p239*239, p240*240, p241*241, p242*242])
-weight_fractions = num/denom
-total_plutonium_WF = np.sum([weight_fractions[3:7]])
-density_plutonium = 19840 #g/L
-grams_plutonium = total_plutonium_WF*density_plutonium*volume_of_container # grams
-total_nitric_acid = np.sum([weight_fractions[0:3]])
-density_nitric_acid = 1510 #g/L
-grams_nitric_acid = total_nitric_acid*density_nitric_acid*volume_of_container # grams
-
-
+#%% USE MEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
 Pu_atomic_fractions = np.array([p239, p240, p241, p242])
 Pu_total_atomic_fractions = np.sum(Pu_atomic_fractions)
 Pu_ratios = Pu_atomic_fractions / Pu_total_atomic_fractions
-
 HNO3_atomic_fractions = np.array([h, n, o])
 HNO3_total_atomic_fractions = np.sum(HNO3_atomic_fractions)
 HNO3_ratios = HNO3_atomic_fractions /  HNO3_total_atomic_fractions
-soln_den = 1
 
-#%% USE MEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-# assume 1L of solution
-grams_plutonium_calc = gpl*liters_in_container # g in 1 L of solution
-weight_fraction_plutonium_calc = grams_plutonium_calc / density_plutonium
-weight_fraction_Pu_ratios = Pu_ratios * weight_fraction_plutonium_calc
+volume_solution = 2 # L
+concentration_plutonium = 250 # g/L
+density_plutonium = 19840 # g/L
+density_nitric_acid = 1510 #g/L
 
-# 1L of HNO3 is 1L*1510g/L
-grams_HNO3_calc = 1510*liters_in_container # g of total solution
-weight_fraction_HNO3_calc = grams_HNO3_calc / density_nitric_acid
-weight_fraction_HNO3_ratios = HNO3_ratios * weight_fraction_HNO3_calc
-
+volume_plutonium_solution = volume_solution*concentration_plutonium / density_plutonium # L
+volume_HNO3 = volume_solution - volume_plutonium_solution
+grams_HNO3_calc = volume_HNO3*density_nitric_acid # g of total solution
+grams_plutonium_calc = concentration_plutonium*volume_solution # g in X L of solution
+total_mass_solution = grams_HNO3_calc + grams_plutonium_calc
+weight_fraction_Pu_ratios = Pu_ratios * grams_plutonium_calc / total_mass_solution
+weight_fraction_HNO3_ratios = HNO3_ratios * grams_HNO3_calc / total_mass_solution
 MCNP_input_WF = np.append(weight_fraction_HNO3_ratios,weight_fraction_Pu_ratios)
+print(np.sum(MCNP_input_WF))
+
+#%%
+
+# # listed in atomic fractions
+# # convert to WF, calculate the amount of Pu in the system to credible
+
+# # Convert to weight fractions here
+# # Adjust to credible concentrations
+# OG_AF = np.sum(np.array([h,n,o,p239,p240,p241,p242]))
+
+# denom = h*1 + o*16 + n*14 + p239*239 + p240*240 + p241*241 + p242*242
+# num = np.array([h*1, o*16, n*14, p239*239, p240*240, p241*241, p242*242])
+# weight_fractions = num/denom
+# total_plutonium_WF = np.sum([weight_fractions[3:7]])
+# density_plutonium = 19840 #g/L
+# grams_plutonium = total_plutonium_WF*density_plutonium*volume_of_container # grams
+# total_nitric_acid = np.sum([weight_fractions[0:3]])
+# density_nitric_acid = 1510 #g/L
+# grams_nitric_acid = total_nitric_acid*density_nitric_acid*volume_of_container # grams
+
+
+# Pu_atomic_fractions = np.array([p239, p240, p241, p242])
+# Pu_total_atomic_fractions = np.sum(Pu_atomic_fractions)
+# Pu_ratios = Pu_atomic_fractions / Pu_total_atomic_fractions
+
+# HNO3_atomic_fractions = np.array([h, n, o])
+# HNO3_total_atomic_fractions = np.sum(HNO3_atomic_fractions)
+# HNO3_ratios = HNO3_atomic_fractions /  HNO3_total_atomic_fractions
+
+
+# #%% USE MEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+# # assume 1L of solution
+# grams_plutonium_calc = gpl*liters_in_container # g in 1 L of solution
+# weight_fraction_plutonium_calc = grams_plutonium_calc / density_plutonium
+# weight_fraction_Pu_ratios = Pu_ratios * weight_fraction_plutonium_calc
+
+# # 1L of HNO3 is 1L*1510g/L
+# grams_HNO3_calc = 1510*liters_in_container # g of total solution
+
+# weight_fraction_HNO3_calc = grams_HNO3_calc / density_nitric_acid
+# weight_fraction_HNO3_ratios = HNO3_ratios * weight_fraction_HNO3_calc
+
+# MCNP_input_WF = np.append(weight_fraction_HNO3_ratios,weight_fraction_Pu_ratios)
+
+
 
 
 #%% Data Card
@@ -172,6 +215,51 @@ elif absorber == 3:
     data_values.append('     08016 -0.231781')
     data_values.append('     18000 -0.012827')
     ab_den = 0.001205
+elif absorber == 4:
+    data_values.append('c Natural Boron')
+    data_values.append('m200 05010 -0.20000')
+    data_values.append('     05011 -0.80000')
+    ab_den = 2.37
+    filename = 'STA_mcnp_input_NatB.txt'
+elif absorber == 5:
+    data_values.append('c Cadmium')
+    data_values.append('m200 48000 -1.000')
+    ab_den = 8.65
+    filename = 'STA_mcnp_input_Cd.txt'
+elif absorber == 6:
+    data_values.append('c Gadolinium')
+    data_values.append('m200 64000 -1.000')
+    ab_den = 7.9004
+    filename = 'STA_mcnp_input_Gd.txt'
+elif absorber == 7:
+    data_values.append('c Oak Ridge Concrete')
+    data_values.append('m200 01001 -0.006187')
+    data_values.append('     06000 -0.175193')
+    data_values.append('     08016 -0.410184')
+    data_values.append('     11023 -0.000271')
+    data_values.append('     11200 -0.032649')
+    data_values.append('     13027 -0.010830')
+    data_values.append('     14000 -0.034479')
+    data_values.append('     19000 -0.001138')
+    data_values.append('     20000 -0.321287')
+    data_values.append('     26000 -0.007784')
+    ab_den = 2.30
+    filename = 'STA_mcnp_input_Concrete.txt'
+elif absorber == 8:
+    data_values.append('c Borated Polyethylene')
+    data_values.append('m200 01001 -0.125355')
+    data_values.append('     05010 -0.020000')
+    data_values.append('     05011 -0.080000')
+    data_values.append('     06000 -0.774645')
+    ab_den = 1.00
+    filename = 'STA_mcnp_input_BorPoly.txt'
+elif absorber == 9:
+    data_values.append('c Polyethylene')
+    data_values.append('m200 06000 -0.240183')
+    data_values.append('     01001 -0.143716')
+    ab_den = 0.93
+    filename = 'STA_mcnp_input_Poly.txt'
+print('Your filename is:', filename)
 data_values.append('c Platform and Rail Material (steel)')
 data_values.append('m300 06000 -0.0050')
 data_values.append('     26000 -0.9950')
