@@ -137,74 +137,46 @@ p240 = 5.30869186e-04
 p241 = 3.62446221e-05
 p242 = 1.99065079e-06
 
-#%% USE MEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+#%% Concentrations Block
+# listed in atomic fractions
+# convert to WF, calculate the amount of Pu in the system to credible
+
+# Convert to weight fractions here
+# Adjust to credible concentrations
+OG_AF = np.sum(np.array([h,n,o,p239,p240,p241,p242]))
+
+denom = h*1 + o*16 + n*14 + p239*239 + p240*240 + p241*241 + p242*242
+num = np.array([h*1, o*16, n*14, p239*239, p240*240, p241*241, p242*242])
+weight_fractions = num/denom
+total_plutonium_WF = np.sum([weight_fractions[3:7]])
+density_plutonium = 19840 #g/L
+grams_plutonium = total_plutonium_WF*density_plutonium*volume_of_container # grams
+total_nitric_acid = np.sum([weight_fractions[0:3]])
+density_nitric_acid = 1510 #g/L
+grams_nitric_acid = total_nitric_acid*density_nitric_acid*volume_of_container # grams
+
+
 Pu_atomic_fractions = np.array([p239, p240, p241, p242])
 Pu_total_atomic_fractions = np.sum(Pu_atomic_fractions)
 Pu_ratios = Pu_atomic_fractions / Pu_total_atomic_fractions
+
 HNO3_atomic_fractions = np.array([h, n, o])
 HNO3_total_atomic_fractions = np.sum(HNO3_atomic_fractions)
 HNO3_ratios = HNO3_atomic_fractions /  HNO3_total_atomic_fractions
+soln_den = 1
 
-volume_solution = 2 # L
-concentration_plutonium = 250 # g/L
-density_plutonium = 19840 # g/L
-density_nitric_acid = 1510 #g/L
+#%% USE MEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+# assume 1L of solution
+grams_plutonium_calc = gpl*liters_in_container # g in 1 L of solution
+weight_fraction_plutonium_calc = grams_plutonium_calc / density_plutonium
+weight_fraction_Pu_ratios = Pu_ratios * weight_fraction_plutonium_calc
 
-volume_plutonium_solution = volume_solution*concentration_plutonium / density_plutonium # L
-volume_HNO3 = volume_solution - volume_plutonium_solution
-grams_HNO3_calc = volume_HNO3*density_nitric_acid # g of total solution
-grams_plutonium_calc = concentration_plutonium*volume_solution # g in X L of solution
-total_mass_solution = grams_HNO3_calc + grams_plutonium_calc
-weight_fraction_Pu_ratios = Pu_ratios * grams_plutonium_calc / total_mass_solution
-weight_fraction_HNO3_ratios = HNO3_ratios * grams_HNO3_calc / total_mass_solution
+# 1L of HNO3 is 1L*1510g/L
+grams_HNO3_calc = 1510*liters_in_container # g of total solution
+weight_fraction_HNO3_calc = grams_HNO3_calc / density_nitric_acid
+weight_fraction_HNO3_ratios = HNO3_ratios * weight_fraction_HNO3_calc
+
 MCNP_input_WF = np.append(weight_fraction_HNO3_ratios,weight_fraction_Pu_ratios)
-print(np.sum(MCNP_input_WF))
-
-#%%
-
-# # listed in atomic fractions
-# # convert to WF, calculate the amount of Pu in the system to credible
-
-# # Convert to weight fractions here
-# # Adjust to credible concentrations
-# OG_AF = np.sum(np.array([h,n,o,p239,p240,p241,p242]))
-
-# denom = h*1 + o*16 + n*14 + p239*239 + p240*240 + p241*241 + p242*242
-# num = np.array([h*1, o*16, n*14, p239*239, p240*240, p241*241, p242*242])
-# weight_fractions = num/denom
-# total_plutonium_WF = np.sum([weight_fractions[3:7]])
-# density_plutonium = 19840 #g/L
-# grams_plutonium = total_plutonium_WF*density_plutonium*volume_of_container # grams
-# total_nitric_acid = np.sum([weight_fractions[0:3]])
-# density_nitric_acid = 1510 #g/L
-# grams_nitric_acid = total_nitric_acid*density_nitric_acid*volume_of_container # grams
-
-
-# Pu_atomic_fractions = np.array([p239, p240, p241, p242])
-# Pu_total_atomic_fractions = np.sum(Pu_atomic_fractions)
-# Pu_ratios = Pu_atomic_fractions / Pu_total_atomic_fractions
-
-# HNO3_atomic_fractions = np.array([h, n, o])
-# HNO3_total_atomic_fractions = np.sum(HNO3_atomic_fractions)
-# HNO3_ratios = HNO3_atomic_fractions /  HNO3_total_atomic_fractions
-
-
-# #%% USE MEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-# # assume 1L of solution
-# grams_plutonium_calc = gpl*liters_in_container # g in 1 L of solution
-# weight_fraction_plutonium_calc = grams_plutonium_calc / density_plutonium
-# weight_fraction_Pu_ratios = Pu_ratios * weight_fraction_plutonium_calc
-
-# # 1L of HNO3 is 1L*1510g/L
-# grams_HNO3_calc = 1510*liters_in_container # g of total solution
-
-# weight_fraction_HNO3_calc = grams_HNO3_calc / density_nitric_acid
-# weight_fraction_HNO3_ratios = HNO3_ratios * weight_fraction_HNO3_calc
-
-# MCNP_input_WF = np.append(weight_fraction_HNO3_ratios,weight_fraction_Pu_ratios)
-
-
-
 
 #%% Data Card
 data_values = []
@@ -420,11 +392,10 @@ with open(qsub_filename,'w') as file:
 windows_line_ending = b'\r\n'
 linux_line_ending = b'\n'
 with open(qsub_filename, 'rb') as f:
-	content = f.read()
-	content = content.replace(windows_line_ending, linux_line_ending)
+    content = f.read()
+    content = content.replace(windows_line_ending, linux_line_ending)
 
 with open(qsub_filename, 'wb') as f:
-	f.write(content)
-
+    f.write(content)
 
 
