@@ -15,15 +15,20 @@ filename = 'STA_mcnp_input.txt'
 #%% Dimensions of STA
 
 deck_title = 'STA MCNP Input Deck'
-center_distance = 14.5 # distance from center of cylinders to center of assembly
+center_distance = 15 # distance from center of cylinders to center of assembly
 # assuming container is cylindrical and has an h/d ratio of 1
 liters_in_container = 2
 h_to_d = 1
 volume_of_container = liters_in_container*1000 # cm^3
-gpl = 100 # Pu concentration
+gpl = 250 # Pu concentration
 pp = 2
+contact = 'yes'
+walls = 'yes'
 
-# absorber: choose 1 for Boron-10, 2 for Aluminum, 3 for Air, 4 for Natural Boron, 5 for Cadmium, 6 for Gadolinium, 7 for Oak Ridge Concrete,
+#if contact == 'yes':
+
+# absorber: choose 1 for Boron-10, 2 for Aluminum, 3 for Air, 4 for Natural Boron,
+# 5 for Cadmium, 6 for Gadolinium, 7 for Oak Ridge Concrete,
 # 8 for Borated Polyethylene, 9 for Polyethylene
 absorber = 6
 
@@ -35,7 +40,7 @@ p239 = 1.20317020e-02
 p240 = 5.30869186e-04
 p241 = 3.62446221e-05
 p242 = 1.99065079e-06
-soln_den = 0.1
+soln_den = 1.24136
 
 
 con_h = (h_to_d)*((4*volume_of_container)/(pi*h_to_d))**(1/3)
@@ -44,23 +49,38 @@ con_r = con_h/(h_to_d*2)
 # con_r = con_h/2 # radius of container
 
 
-rail_w = 22  # rail width
+rail_w = con_r*2+2  # rail width
 rail_l = 50  # rail length
 rail_h = 10  # rail height
-rail_edge = 10
-
-plat_s = 18  # platform side length (square)
-plat_h = 3  # platform height
-
-ab_thick = 1 # absorber thickness
-ab_w = plat_s # absorber width (same as platform width)
-ab_h = con_h # absorber height (same as container height)
+rail_edge = 5
 
 lip_h = 2 # fastener height
 lip_r = con_r + 1
 
+ex_th = 2
+ab_thick = 1 # absorber thickness
+plat_w = rail_w-1  # platform side length (square)
+plat_l = lip_r*2 + ex_th + ab_thick
+plat_h = 3  # platform height
+ab_w = plat_w # absorber width (same as platform width)
+ab_h = con_h # absorber height (same as container height)
+
+
+
+
+
+# interaction check
+threshold = 0.21
+y_interaction_rail = -rail_edge*np.cos((pi/180)*30)+(rail_w/2)*np.sin((pi/180)*30)
+if y_interaction_rail > -threshold:
+    print('Error: Bounds of the rail overlap and MCNP will get very upset. :(')
+    
+y_interaction_plat = center_distance - plat_l/2
+if (y_interaction_plat-threshold) < rail_edge:
+    print('Error: Bounds of the platform overlap and MCNP will get very upset. :(')
+
 # k code
-num_part = 1000 # number of particles per generation
+num_part = 10000 # number of particles per generation
 num_skip = 10 #  number of generations skipped
 num_tot_gen = 50 # number of total generations
 
@@ -88,13 +108,13 @@ header.append('c ')
 surface_values = []
 surface_values.append('c Surface')
 surface_values.append('1 px -'+str((np.round(rail_l+rail_edge,2)))+'    $ west edge of rail')
-surface_values.append('2 px -' + str(np.round(center_distance+plat_s/2,2)) + '    $ west edge of platform')
-surface_values.append('3 px -' + str(np.round(ab_thick+center_distance-plat_s/2,2)) + '    $ west edge of abs (west edge of platform minus abs thickness)')
-surface_values.append('4 px -' + str(np.round(center_distance-plat_s/2,2)) + '    $ east edge of platform and of abs')
+surface_values.append('2 px -' + str(np.round(center_distance+plat_l/2,2)) + '    $ west edge of platform')
+surface_values.append('3 px -' + str(np.round(ab_thick+center_distance-plat_l/2,2)) + '    $ west edge of abs (west edge of platform minus abs thickness)')
+surface_values.append('4 px -' + str(np.round(center_distance-plat_l/2,2)) + '    $ east edge of platform and of abs')
 surface_values.append('5 px -'+ str(np.round(rail_edge,2)) +'   $ east edge of rail')
 surface_values.append('6 py -'+ str(np.round(rail_w/2,2)) +'    $ south edge of rail')
-surface_values.append('7 py -'+ str(np.round(plat_s/2,2)) +'     $ south edge of platform and abs')
-surface_values.append('8 py '+ str(np.round(plat_s/2,2)) +'      $ north edge of platform and abs')
+surface_values.append('7 py -'+ str(np.round(plat_w/2,2)) +'     $ south edge of platform and abs')
+surface_values.append('8 py '+ str(np.round(plat_w/2,2)) +'      $ north edge of platform and abs')
 surface_values.append('9 py ' + str(np.round(rail_w/2,2)) + '     $ north edge of rail')
 surface_values.append('10 pz 0     $ bottom of rail')
 surface_values.append('11 pz ' + str(np.round(rail_h,2)) + '    $ top of rail, bottom of platform')
@@ -204,10 +224,12 @@ if absorber == 1:
     data_values.append('c Boron-10')
     data_values.append('m200 05010 -1.000')
     ab_den = 2.37
+    filename = 'STA_mcnp_input_B10.txt'
 elif absorber == 2:
     data_values.append('c Aluminum')
     data_values.append('m200 13027 -1.000')
     ab_den = 2.7
+    filename = 'STA_mcnp_input_Al.txt'
 elif absorber == 3:
     data_values.append('c Air (Dry, Near Sea Level)')
     data_values.append('m200 06000 -0.000124')
@@ -215,6 +237,7 @@ elif absorber == 3:
     data_values.append('     08016 -0.231781')
     data_values.append('     18000 -0.012827')
     ab_den = 0.001205
+    filename = 'STA_mcnp_input_Air.txt'
 elif absorber == 4:
     data_values.append('c Natural Boron')
     data_values.append('m200 05010 -0.20000')
@@ -285,9 +308,9 @@ fig, ax = plt.subplots()
 dimen = 50
 ax.set_xlim((-dimen, dimen))
 ax.set_ylim((-dimen, dimen))
-ax.add_patch(Drawing_colored_circle1)
-ax.add_patch(Drawing_colored_circle2)
-ax.add_patch(Drawing_colored_circle3)
+# ax.add_patch(Drawing_colored_circle1)
+# ax.add_patch(Drawing_colored_circle2)
+# ax.add_patch(Drawing_colored_circle3)
 ax.add_patch(Drawing_colored_circle4)
 ax.add_patch(Drawing_colored_circle5)
 ax.add_patch(Drawing_colored_circle6)
@@ -324,6 +347,21 @@ cell_values.append('')
 
 
 lines = [header,cell_values,surface_values,data_values]
+
+# new_header = []
+# new_cell_values = []
+# new_surface_values = []
+# new_data_values = []
+# if contact == 'yes':
+#     new_header = header
+#     new_header.append('c CONTACTING CONTAINERS')    
+#     new_cell_values.append('c Cells')
+#     new_cell_values.append('5 100 -'+str(np.round(soln_den,4)) +' -15 12 -14 imp:n=1         $ container')
+#     new_cell_values.append('6 LIKE 5 BUT TRCL=1')
+#     new_cell_values.append('7 LIKE 5 BUT TRCL=2')
+#     new_cell_values.
+    
+    
 with open(filename,'w',encoding="utf-8") as file:
     for inte,line in enumerate(lines):
         if type(line) == list:
