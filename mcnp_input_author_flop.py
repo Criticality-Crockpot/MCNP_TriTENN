@@ -18,7 +18,7 @@ filename = 'STA_mcnp_input.txt'
 deck_title = 'STA MCNP Input Deck' 
 center_distance = 15 # distance from center of cylinders to center of assembly
 # assuming container is cylindrical and has an h/d ratio of 1
-liters_in_container = 2
+liters_in_container = 9
 h_to_d = 1
 volume_of_container = liters_in_container*1000 # cm^3
 gpl = 250 # Pu concentration
@@ -189,46 +189,54 @@ def STA_jockey_norm(f,cd,l,g,hd,a,flood,w,vr,d):
     
  
      #%% Concentration Calculations
-    
-    h = 0.60689089
-    n = 0.02394325
-    o = 0.36916586
-    p239 = 1.20317020e-02
-    p240 = 5.30869186e-04
-    p241 = 3.62446221e-05
-    p242 = 1.99065079e-06
+    import numpy as np
+    h = 6.0070e-2
+    n = 2.3699e-3
+    o = 3.6540e-2
+    p239 = 2.7682e-4
+    p240 = 1.2214e-5
+    p241 = 8.3390e-7
+    p242 = 4.5800e-8
     
     # Plutonium ratios to determine volume of Plutonium in solution
 
     density_plutonium = 19840 #g/L
     
-    
     Pu_atomic_fractions = np.array([p239, p240, p241, p242])
-    Pu_total_atomic_fractions = np.sum(Pu_atomic_fractions)
-    Pu_ratios = Pu_atomic_fractions / Pu_total_atomic_fractions
+    Pu_total_atomic_fractions = np.sum(Pu_atomic_fractions) # sum to calculate ratios
+    Pu_ratios = Pu_atomic_fractions / Pu_total_atomic_fractions # Pu isotopic ratios
     
-    Pu_mass = g * l
+    Pu_mass = g * l # total Pu mass in grams
     
-    Pu_isotopic_masses = np.array(Pu_mass * Pu_ratios)
-    Pu_volume = Pu_mass / density_plutonium
+    Pu_isotopic_masses = np.array(Pu_mass * Pu_ratios) # individual Pu isotopes
+    Pu_volume = Pu_mass / density_plutonium # L, calculate volume to find the volume of HNO3
     
     # Backwards calculate HNO3 isotopics
     
-    density_HNO3 = 1510 #g/L
-    HNO3_volume = l - Pu_volume # liters HNO3
-    HNO3_mass = HNO3_volume * density_HNO3
+    density_HNO3 = 1130 #g/L
+    HNO3_volume = l - Pu_volume # liters HNO3, depends on total liters of solution and Pu volume
+    HNO3_mass = HNO3_volume * density_HNO3 # total HNO3 mass
     
     HNO3_atomic_fractions = np.array([h, n, o])
-    HNO3_total_atomic_fractions = np.sum(HNO3_atomic_fractions)
-    HNO3_ratios = HNO3_atomic_fractions /  HNO3_total_atomic_fractions
+    mols = HNO3_atomic_fractions / (6.022e23) # mols
+    ratios = np.round(mols*(10e26) / 4,0)
+    # H25 N1 O15
+    # in one molecule, WF ratio are [0.0896, 0.0502, 0.8602]
     
-    HNO3_isotopic_masses = np.array(HNO3_mass * HNO3_ratios)
+    WF_NO3 = np.array([0.0896, 0.0502, 0.8602])  
+    HNO3_isotopic_masses = np.array(HNO3_mass * WF_NO3) # Hydrogen dominates
     
+    # Quick function to find weight fraction
     def weight_fraction(isotope_mass, total_mass):
         WF = isotope_mass / total_mass
         return WF
     
+    # Find total mass of solution
     solution_mass = np.sum(HNO3_isotopic_masses) + np.sum(Pu_isotopic_masses)
+    
+    
+    
+    # Weight fractions of each isotope based on ratios
     H = weight_fraction(HNO3_isotopic_masses[0], solution_mass)
     N = weight_fraction(HNO3_isotopic_masses[1], solution_mass)
     O = weight_fraction(HNO3_isotopic_masses[2], solution_mass)
@@ -237,6 +245,7 @@ def STA_jockey_norm(f,cd,l,g,hd,a,flood,w,vr,d):
     Pu241 = weight_fraction(Pu_isotopic_masses[2], solution_mass)
     Pu242 = weight_fraction(Pu_isotopic_masses[3], solution_mass)
     
+    # These values used in material card as weight fractions
     soln_wt_fraction = np.array([H, N, O, Pu239, Pu240, Pu241, Pu242])
     
  #%% Data Card
@@ -653,36 +662,44 @@ def STA_jockey_contact(f,l,g,hd,flood,vr,d):
     p242 = 1.99065079e-06
     
     # Plutonium ratios to determine volume of Plutonium in solution
-    
+
     density_plutonium = 19840 #g/L
     
-    
     Pu_atomic_fractions = np.array([p239, p240, p241, p242])
-    Pu_total_atomic_fractions = np.sum(Pu_atomic_fractions)
-    Pu_ratios = Pu_atomic_fractions / Pu_total_atomic_fractions
+    Pu_total_atomic_fractions = np.sum(Pu_atomic_fractions) # sum to calculate ratios
+    Pu_ratios = Pu_atomic_fractions / Pu_total_atomic_fractions # Pu isotopic ratios
     
-    Pu_mass = g * l
+    Pu_mass = g * l # total Pu mass in grams
     
-    Pu_isotopic_masses = np.array(Pu_mass * Pu_ratios)
-    Pu_volume = Pu_mass / density_plutonium
+    Pu_isotopic_masses = np.array(Pu_mass * Pu_ratios) # individual Pu isotopes
+    Pu_volume = Pu_mass / density_plutonium # L, calculate volume to find the volume of HNO3
     
     # Backwards calculate HNO3 isotopics
     
-    density_HNO3 = 1510 #g/L
-    HNO3_volume = l - Pu_volume # liters HNO3
-    HNO3_mass = HNO3_volume * density_HNO3
+    density_HNO3 = 1130 #g/L
+    HNO3_volume = l - Pu_volume # liters HNO3, depends on total liters of solution and Pu volume
+    HNO3_mass = HNO3_volume * density_HNO3 # total HNO3 mass
     
     HNO3_atomic_fractions = np.array([h, n, o])
-    HNO3_total_atomic_fractions = np.sum(HNO3_atomic_fractions)
-    HNO3_ratios = HNO3_atomic_fractions /  HNO3_total_atomic_fractions
+    mols = HNO3_atomic_fractions / (6.022e23) # mols
+    ratios = np.round(mols*(10e26) / 4,0)
+    # H25 N1 O15
+    # in one molecule, WF ratio are [0.0896, 0.0502, 0.8602]
     
-    HNO3_isotopic_masses = np.array(HNO3_mass * HNO3_ratios)
+    WF_NO3 = np.array([0.0896, 0.0502, 0.8602])  
+    HNO3_isotopic_masses = np.array(HNO3_mass * WF_NO3) # Hydrogen dominates
     
+    # Quick function to find weight fraction
     def weight_fraction(isotope_mass, total_mass):
         WF = isotope_mass / total_mass
         return WF
     
+    # Find total mass of solution
     solution_mass = np.sum(HNO3_isotopic_masses) + np.sum(Pu_isotopic_masses)
+    
+    
+    
+    # Weight fractions of each isotope based on ratios
     H = weight_fraction(HNO3_isotopic_masses[0], solution_mass)
     N = weight_fraction(HNO3_isotopic_masses[1], solution_mass)
     O = weight_fraction(HNO3_isotopic_masses[2], solution_mass)
@@ -691,6 +708,7 @@ def STA_jockey_contact(f,l,g,hd,flood,vr,d):
     Pu241 = weight_fraction(Pu_isotopic_masses[2], solution_mass)
     Pu242 = weight_fraction(Pu_isotopic_masses[3], solution_mass)
     
+    # These values used in material card as weight fractions
     soln_wt_fraction = np.array([H, N, O, Pu239, Pu240, Pu241, Pu242])
     #%% Data Card
     data_values = []
