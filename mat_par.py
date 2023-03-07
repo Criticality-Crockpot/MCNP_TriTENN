@@ -252,13 +252,13 @@ def STA_jockey_contact(f,l,g,hd,flood,vr,d,plat_mat):
     data_values.append('mode n')
     data_values.append('kcode ' + str(int(num_part))+ ' 1.0 '+str(int(num_skip))+' '+str(int(num_tot_gen)))
     
-    """
+    
     z = (np.round(plat_h+con_h+rail_h,2)+np.round(plat_h+rail_h,2))/2
     k_pos1 = ' -'+str(np.round(cd,pp)) + ' 0 ' + str(np.round(z,pp))
     k_pos2 = ' '+str(np.round(cd*np.cos(pi/3),pp))+' '+str(np.round(cd*np.cos(pi/6),pp)) +' '+ str(np.round(z,pp))
     k_pos3 = ' '+str(np.round(cd*np.cos(pi/3),pp))+' -'+str(np.round(cd*np.cos(pi/6),pp)) +' '+ str(np.round(z,pp))
     data_values.append('ksrc'+k_pos1+k_pos2+k_pos3)
-    
+    """
     extra = 5.5
     Drawing_colored_circle1 = plt.Circle(( -(np.round(cd,pp)) , 0 ), con_r+extra,color='k' )
     Drawing_colored_circle2 = plt.Circle(( np.round(cd*np.cos(pi/3),pp) , np.round(cd*np.cos(pi/6),pp) ), con_r+extra,color='k' )
@@ -292,7 +292,7 @@ def STA_jockey_contact(f,l,g,hd,flood,vr,d,plat_mat):
     elif flood== 'yes_steam':
         cell_values.append('100 300 -0.000756 -17 #5 #6 #7 #10 #11 #12 imp:n=1')
     else:
-        cell_values.append('100 0 -17 #5 #6 #7 #10 #11 #12 imp:n=1')
+        cell_values.append('100 0 -17 #5 #6 #7 #20 imp:n=1')
     cell_values.append('999 0 17 imp:n=0')
     cell_values.append('')
         
@@ -379,7 +379,7 @@ def STA_jockey_contact(f,l,g,hd,flood,vr,d,plat_mat):
          
 
 mats = [1,2,3,4,5,6,7]
-mat_des = ['Steel','Stainless Steel 304','Aluminum','Titanium','Copper','Brass','Polyethylene']
+mat_des = [' Steel',' Stainless Steel 304',' Aluminum',' Titanium',' Copper',' Brass',' Polyethylene']
 
 deck_title = 'STA MCNP Input Deck' 
 center_distance = 15 # distance from center of cylinders to center of assembly
