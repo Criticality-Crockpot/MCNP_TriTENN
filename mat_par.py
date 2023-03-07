@@ -132,79 +132,63 @@ def STA_jockey_contact(f,l,g,hd,flood,vr,d,plat_mat):
     
     #%% 
     
-    h = 0.60689089
-    n = 0.02394325
-    o = 0.36916586
-    p239 = 1.20317020e-02
-    p240 = 5.30869186e-04
-    p241 = 3.62446221e-05
-    p242 = 1.99065079e-06
+    h = 6.0070e-2
+    n = 2.3699e-3
+    o = 3.6540e-2
+    p239 = 2.7682e-4
+    p240 = 1.2214e-5
+    p241 = 8.3390e-7
+    p242 = 4.5800e-8
     
-    #%% USE MEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+    # Plutonium ratios to determine volume of Plutonium in solution
+
+    density_plutonium = 19840 #g/L
+    
     Pu_atomic_fractions = np.array([p239, p240, p241, p242])
-    Pu_total_atomic_fractions = np.sum(Pu_atomic_fractions)
-    Pu_ratios = Pu_atomic_fractions / Pu_total_atomic_fractions
+    Pu_total_atomic_fractions = np.sum(Pu_atomic_fractions) # sum to calculate ratios
+    Pu_ratios = Pu_atomic_fractions / Pu_total_atomic_fractions # Pu isotopic ratios
+    
+    Pu_mass = g * l # total Pu mass in grams
+    
+    Pu_isotopic_masses = np.array(Pu_mass * Pu_ratios) # individual Pu isotopes
+    Pu_volume = Pu_mass / density_plutonium # L, calculate volume to find the volume of HNO3
+    
+    # Backwards calculate HNO3 isotopics
+    
+    density_HNO3 = 1130 #g/L
+    HNO3_volume = l - Pu_volume # liters HNO3, depends on total liters of solution and Pu volume
+    HNO3_mass = HNO3_volume * density_HNO3 # total HNO3 mass
+    
     HNO3_atomic_fractions = np.array([h, n, o])
-    HNO3_total_atomic_fractions = np.sum(HNO3_atomic_fractions)
-    HNO3_ratios = HNO3_atomic_fractions /  HNO3_total_atomic_fractions
+    mols = HNO3_atomic_fractions / (6.022e23) # mols
+    ratios = np.round(mols*(10e26) / 4,0)
+    # H25 N1 O15
+    # in one molecule, WF ratio are [0.0896, 0.0502, 0.8602]
     
-    volume_solution = l # L
-    concentration_plutonium = g # g/L
-    density_plutonium = 19840 # g/L
-    density_nitric_acid = 1510 #g/L
+    WF_NO3 = np.array([0.0896, 0.0502, 0.8602])  
+    HNO3_isotopic_masses = np.array(HNO3_mass * WF_NO3) # Hydrogen dominates
     
-    volume_plutonium_solution = volume_solution*concentration_plutonium / density_plutonium # L
-    volume_HNO3 = volume_solution - volume_plutonium_solution
-    grams_HNO3_calc = volume_HNO3*density_nitric_acid # g of total solution
-    grams_plutonium_calc = concentration_plutonium*volume_solution # g in X L of solution
-    total_mass_solution = grams_HNO3_calc + grams_plutonium_calc
-    weight_fraction_Pu_ratios = Pu_ratios * grams_plutonium_calc / total_mass_solution
-    weight_fraction_HNO3_ratios = HNO3_ratios * grams_HNO3_calc / total_mass_solution
-    MCNP_input_WF = np.append(weight_fraction_HNO3_ratios,weight_fraction_Pu_ratios)
-    print(np.sum(MCNP_input_WF))
+    # Quick function to find weight fraction
+    def weight_fraction(isotope_mass, total_mass):
+        WF = isotope_mass / total_mass
+        return WF
     
-    #%%
-    
-    # # listed in atomic fractions
-    # # convert to WF, calculate the amount of Pu in the system to credible
-    
-    # # Convert to weight fractions here
-    # # Adjust to credible concentrations
-    # OG_AF = np.sum(np.array([h,n,o,p239,p240,p241,p242]))
-    
-    # denom = h*1 + o*16 + n*14 + p239*239 + p240*240 + p241*241 + p242*242
-    # num = np.array([h*1, o*16, n*14, p239*239, p240*240, p241*241, p242*242])
-    # weight_fractions = num/denom
-    # total_plutonium_WF = np.sum([weight_fractions[3:7]])
-    # density_plutonium = 19840 #g/L
-    # grams_plutonium = total_plutonium_WF*density_plutonium*volume_of_container # grams
-    # total_nitric_acid = np.sum([weight_fractions[0:3]])
-    # density_nitric_acid = 1510 #g/L
-    # grams_nitric_acid = total_nitric_acid*density_nitric_acid*volume_of_container # grams
+    # Find total mass of solution
+    solution_mass = np.sum(HNO3_isotopic_masses) + np.sum(Pu_isotopic_masses)
     
     
-    # Pu_atomic_fractions = np.array([p239, p240, p241, p242])
-    # Pu_total_atomic_fractions = np.sum(Pu_atomic_fractions)
-    # Pu_ratios = Pu_atomic_fractions / Pu_total_atomic_fractions
     
-    # HNO3_atomic_fractions = np.array([h, n, o])
-    # HNO3_total_atomic_fractions = np.sum(HNO3_atomic_fractions)
-    # HNO3_ratios = HNO3_atomic_fractions /  HNO3_total_atomic_fractions
+    # Weight fractions of each isotope based on ratios
+    H = weight_fraction(HNO3_isotopic_masses[0], solution_mass)
+    N = weight_fraction(HNO3_isotopic_masses[1], solution_mass)
+    O = weight_fraction(HNO3_isotopic_masses[2], solution_mass)
+    Pu239 = weight_fraction(Pu_isotopic_masses[0], solution_mass)
+    Pu240 = weight_fraction(Pu_isotopic_masses[1], solution_mass)
+    Pu241 = weight_fraction(Pu_isotopic_masses[2], solution_mass)
+    Pu242 = weight_fraction(Pu_isotopic_masses[3], solution_mass)
     
-    
-    # #%% USE MEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-    # # assume 1L of solution
-    # grams_plutonium_calc = gpl*liters_in_container # g in 1 L of solution
-    # weight_fraction_plutonium_calc = grams_plutonium_calc / density_plutonium
-    # weight_fraction_Pu_ratios = Pu_ratios * weight_fraction_plutonium_calc
-    
-    # # 1L of HNO3 is 1L*1510g/L
-    # grams_HNO3_calc = 1510*liters_in_container # g of total solution
-    
-    # weight_fraction_HNO3_calc = grams_HNO3_calc / density_nitric_acid
-    # weight_fraction_HNO3_ratios = HNO3_ratios * weight_fraction_HNO3_calc
-    
-    # MCNP_input_WF = np.append(weight_fraction_HNO3_ratios,weight_fraction_Pu_ratios)
+    # These values used in material card as weight fractions
+    MCNP_input_WF = np.array([H, N, O, Pu239, Pu240, Pu241, Pu242])
     
 
     #%% Data Card
@@ -245,7 +229,7 @@ def STA_jockey_contact(f,l,g,hd,flood,vr,d,plat_mat):
         data_values.append('m200 22000 -1.000')
         plat_den = 4.54
     elif plat_mat == 5:
-        data_values.appened('c Copper')
+        data_values.append('c Copper')
         data_values.append('m200 29000 -1.000000')
         plat_den = 8.96
     elif plat_mat == 6:
@@ -261,23 +245,14 @@ def STA_jockey_contact(f,l,g,hd,flood,vr,d,plat_mat):
         data_values.append('m200 06000 -0.240183')
         data_values.append('     01001 -0.143716')
         plat_den = 0.93
-    # new material below
-    elif plat_mat ==3:
-        data_values.append('c Platform and Rail Material (Stainless Steel 304)')
-        data_values.append('m200 06000 -0.000400')
-        data_values.append('     14000 -0.005000')
-        data_values.append('     15031 -0.000230')
-        data_values.append('     16000 -0.000150')
-        data_values.append('     24000 -0.190000')
-        data_values.append('     25055 -0.010000')
-        data_values.append('     26000 -0.701730')
-        data_values.append('     28000 -0.092500')
     if flood == 'yes_steam' or flood == 'yes_flood':
         data_values.append('c Water')
         data_values.append('m300 01001 -0.111894')
         data_values.append('     08016 -0.888106') 
     data_values.append('mode n')
     data_values.append('kcode ' + str(int(num_part))+ ' 1.0 '+str(int(num_skip))+' '+str(int(num_tot_gen)))
+    
+    """
     z = (np.round(plat_h+con_h+rail_h,2)+np.round(plat_h+rail_h,2))/2
     k_pos1 = ' -'+str(np.round(cd,pp)) + ' 0 ' + str(np.round(z,pp))
     k_pos2 = ' '+str(np.round(cd*np.cos(pi/3),pp))+' '+str(np.round(cd*np.cos(pi/6),pp)) +' '+ str(np.round(z,pp))
@@ -304,6 +279,7 @@ def STA_jockey_contact(f,l,g,hd,flood,vr,d,plat_mat):
     ax.set_aspect('equal', adjustable='box')
     plt.show()
     #%% Cell Card
+    """
     
     cell_values = []
     cell_values.append('c Cells')
@@ -400,3 +376,23 @@ def STA_jockey_contact(f,l,g,hd,flood,vr,d,plat_mat):
         
         with open(qsub_filename, 'wb') as f:
         	f.write(content)
+         
+
+mats = [1,2,3,4,5,6,7]
+mat_des = ['Steel','Stainless Steel 304','Aluminum','Titanium','Copper','Brass','Polyethylene']
+
+deck_title = 'STA MCNP Input Deck' 
+center_distance = 15 # distance from center of cylinders to center of assembly
+liters_in_container = 10
+h_to_d = 1
+volume_of_container = liters_in_container*1000 # cm^3
+gpl = 250 # Pu concentration
+pp = 2
+contact = 'yes'
+walls = 'yes'
+flood = 'no'
+vary_runs = 'no'
+
+
+for i,j in enumerate(mats):        
+    STA_jockey_contact('mat_par_'+str(j)+'.txt',liters_in_container,gpl,h_to_d,flood,vary_runs,mat_des[i],j)
